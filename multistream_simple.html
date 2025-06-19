@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なんかいっぺんに見れるやつ - YouTube & Twitch</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 0.5rem 1rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-align: left;
+            margin-bottom: 0;
+            margin-top: 0;
+            line-height: 1.2;
+        }
+
+        .header p {
+            text-align: center;
+            color: #718096;
+            font-size: 1rem;
+        }
+
+        .header-controls {
+            gap: 0.3rem !important;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.9);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .input-group input {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .layout-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .layout-btn {
+            padding: 3px 10px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .layout-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .streams-container {
+            max-width: none;
+            margin: 0;
+            padding: 8px;
+            width: 100vw;
+            box-sizing: border-box;
+        }
+
+        .streams-grid {
+            width: 100%;
+            display: grid;
+            gap: 12px;
+        }
+
+        .streams-grid.grid-2 { 
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: 1fr; /* 1行の高さを統一 */
+        }
+        .streams-grid.grid-3 { 
+            grid-template-columns: 1fr 1fr 1fr; 
+            grid-template-rows: 1fr; /* 1行の高さを統一 */
+        }
+        .streams-grid.grid-4 { 
+            grid-template-columns: 1fr 1fr 1fr 1fr; 
+            grid-template-rows: 1fr; /* 1行4列に変更 */
+        }
+
+        .stream-item {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stream-frame-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9比率 */
+            background: #000;
+            border-radius: 0 0 8px 8px; /* 上部の角丸を0px、下部のみ8px */
+            overflow: hidden;
+        }
+
+        .stream-item:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .stream-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            cursor: grabbing;
+            z-index: 1000;
+        }
+
+        .stream-item.drag-over {
+            border: 2px dashed #667eea;
+        }
+
+        .stream-header {
+            padding: 0.2rem 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 24px;
+            border-radius: 0;
+        }
+
+        .stream-title {
+            font-weight: 400;
+            font-size: 0.95rem;
+            flex: 1;
+            margin-right: 0.5rem;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: background-color 0.3s ease;
+        }
+
+        .stream-title:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .stream-title.editing {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .stream-title-input {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            outline: none;
+        }
+
+        .stream-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .stream-actions button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .stream-actions button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .drag-handle {
+            cursor: grab;
+            padding: 4px;
+            margin-right: 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .drag-handle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .stream-frame {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #000;
+            display: block;
+        }
+
+        .stream-preview {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: linear-gradient(135deg, #9146ff 0%, #6441a5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+        }
+
+        .preview-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .twitch-logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .preview-content h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .preview-content p {
+            font-size: 1rem;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .stream-info {
+            padding: 1rem;
+            background: white;
+        }
+
+        .stream-url {
+            font-size: 0.9rem;
+            color: #718096;
+            word-break: break-all;
+            margin-bottom: 0.5rem;
+        }
+
+        .stream-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-live {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .status-offline {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: white;
+        }
+
+        .empty-state h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.9);
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+        }
+
+        .instructions h3 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+        }
+
+        .instructions li:before {
+            content: "✓";
+            color: #48bb78;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .header-controls input[type="text"] {
+            flex: 1;
+            min-width: 160px;
+            max-width: 220px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            border: 1.2px solid #e2e8f0;
+            font-size: 0.95rem;
+            margin-right: 0.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .streams-grid.grid-2,
+            .streams-grid.grid-3,
+            .streams-grid.grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .input-group input {
+                min-width: auto;
+            }
+
+            .layout-controls {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginModal" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;">
+        <form id="loginForm" style="background:white;padding:2rem 2.5rem;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:1.2rem;min-width:320px;">
+            <h2 style="text-align:center;color:#4a5568;">ログイン</h2>
+            <input id="loginName" type="text" placeholder="名前" style="padding:10px 14px;font-size:1rem;border-radius:8px;border:1px solid #e2e8f0;outline:none;" required>
+            <input id="loginPass" type="password" placeholder="パスワード" style="padding:10px 14px;font-size:1rem;border-radius:8px;border:1px solid #e2e8f0;outline:none;" required>
+            <button type="submit" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;font-weight:bold;font-size:1rem;padding:10px 0;border:none;border-radius:8px;cursor:pointer;">ログイン</button>
+            <div id="loginError" style="color:#e53e3e;text-align:center;display:none;">名前またはパスワードが違います</div>
+        </form>
+    </div>
+
+    <div class="header" style="display: flex; align-items: center; gap: 1.5rem; justify-content: space-between; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 1.05rem; white-space: nowrap; text-align: left;">🎥 なんかいっぺんに見れるやつ</h1>
+        <div class="header-controls" style="display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap;">
+            <input type="text" id="streamUrl" placeholder="配信URLを入力 (YouTube/Twitch)" style="flex:1; min-width: 160px; max-width: 220px; padding: 5px 8px; border-radius: 5px; border: 1.2px solid #e2e8f0; font-size: 0.95rem; margin-right: 0.1rem;" />
+            <button class="btn btn-primary" onclick="addStream()">配信を追加</button>
+            <button class="btn btn-secondary" id="fullscreenBtn" onclick="toggleFullScreen()">フルスクリーン</button>
+            <span style="margin: 0 0.5rem; color: #aaa;">|</span>
+            <span>レイアウト:</span>
+            <button class="layout-btn" onclick="setLayout(1)">1列</button>
+            <button class="layout-btn active" onclick="setLayout(2)">2列</button>
+            <button class="layout-btn" onclick="setLayout(3)">3列</button>
+            <button class="layout-btn" onclick="setLayout(4)">4列</button>
+            <button class="btn btn-danger" onclick="clearAll()">すべてクリア</button>
+            <button class="btn btn-secondary" id="editModeBtn" onclick="toggleEditMode()">設定モードOFF</button>
+        </div>
+    </div>
+
+    <!-- タブUIを追加 -->
+    <div id="groupTabs" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 1rem 0.3rem 1rem;">
+    </div>
+
+    <div class="streams-container">
+        <div class="streams-grid grid-2" id="streamsGrid">
+            <div class="empty-state" id="emptyState">
+                <h2>🎬 配信を追加してください</h2>
+                <p>YouTube LiveやTwitchの配信URLを入力して、同時視聴を始めましょう！</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // タブ分け用のグループ管理
+        let groups = [
+            { name: 'チーム1', streams: [] }
+        ];
+        let currentGroupIndex = 0;
+        let currentLayout = 2;
+        let draggedElement = null;
+        let draggedIndex = -1;
+        let isEditMode = false;
+        // タブ移動時の読み込み防止用キャッシュ
+        let streamCache = new Map(); // ストリーム要素のキャッシュ
+        let isInitialized = false; // 初期化済みフラグ
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            document.getElementById('editModeBtn').textContent = isEditMode ? '設定モードON' : '設定モードOFF';
+            renderGroupTabs();
+            // 既存の要素も更新するため、キャッシュをリセット
+            isInitialized = false;
+            updateStreamsDisplay();
+        }
+
+        function renderGroupTabs() {
+            const tabs = document.getElementById('groupTabs');
+            tabs.innerHTML = '';
+            groups.forEach((group, idx) => {
+                if (!group) return;
+                const tab = document.createElement('div');
+                tab.textContent = group.name;
+                tab.style.padding = '4px 14px';
+                tab.style.borderRadius = '6px 6px 0 0';
+                tab.style.background = idx === currentGroupIndex ? '#667eea' : '#e2e8f0';
+                tab.style.color = idx === currentGroupIndex ? 'white' : '#4a5568';
+                tab.style.fontWeight = idx === currentGroupIndex ? 'bold' : 'normal';
+                tab.style.cursor = 'pointer';
+                tab.style.position = 'relative';
+                tab.style.display = 'flex';
+                tab.style.alignItems = 'center';
+                tab.onclick = (e) => {
+                    if (isEditMode) {
+                        e.stopPropagation();
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = group.name;
+                        input.style.fontSize = '1rem';
+                        input.style.padding = '2px 6px';
+                        input.style.borderRadius = '4px';
+                        input.style.border = '1px solid #aaa';
+                        input.style.marginRight = '8px';
+                        input.onblur = saveEdit;
+                        input.onkeypress = function(ev) { if (ev.key === 'Enter') saveEdit(); };
+                        tab.innerHTML = '';
+                        tab.appendChild(input);
+                        input.focus();
+                        function saveEdit() {
+                            const newName = input.value.trim();
+                            if (newName) {
+                                group.name = newName;
+                                renderGroupTabs();
+                                saveStreams();
+                            } else {
+                                renderGroupTabs();
+                            }
+                        }
+                    } else {
+                        currentGroupIndex = idx;
+                        updateStreamsDisplay();
+                        renderGroupTabs();
+                    }
+                };
+                // 設定モード時のみ削除ボタン
+                if (isEditMode && groups.length > 1) {
+                    const closeBtn = document.createElement('span');
+                    closeBtn.textContent = '×';
+                    closeBtn.style.marginLeft = '8px';
+                    closeBtn.style.fontSize = '1rem';
+                    closeBtn.style.cursor = 'pointer';
+                    closeBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (confirm('本当にこのグループを削除しますか？')) {
+                            removeGroup(idx);
+                        }
+                    };
+                    tab.appendChild(closeBtn);
+                }
+                tabs.appendChild(tab);
+            });
+            // 追加ボタン
+            const addBtn = document.createElement('button');
+            addBtn.textContent = '＋';
+            addBtn.className = 'btn btn-secondary';
+            addBtn.style.padding = '2px 10px';
+            addBtn.style.fontSize = '1.1rem';
+            addBtn.onclick = () => {
+                const name = prompt('新しいグループ名を入力してください', 'チーム' + (groups.length + 1));
+                if (name && name.trim()) {
+                    groups.push({ name: name.trim(), streams: [] });
+                    currentGroupIndex = groups.length - 1;
+                    updateStreamsDisplay();
+                    renderGroupTabs();
+                }
+            };
+            tabs.appendChild(addBtn);
+        }
+
+        function removeGroup(idx) {
+            if (groups.length <= 1) return;
+            
+            // 削除されるグループのストリームをキャッシュから削除
+            const removedGroup = groups[idx];
+            if (removedGroup && removedGroup.streams) {
+                removedGroup.streams.forEach(stream => {
+                    if (streamCache.has(stream.id)) {
+                        const element = streamCache.get(stream.id);
+                        if (element.parentNode) {
+                            element.parentNode.removeChild(element);
+                        }
+                        streamCache.delete(stream.id);
+                    }
+                });
+            }
+            
+            groups.splice(idx, 1);
+            if (currentGroupIndex >= groups.length) currentGroupIndex = groups.length - 1;
+            // グループが削除された場合はキャッシュをリセット
+            isInitialized = false;
+            updateStreamsDisplay();
+            renderGroupTabs();
+        }
+
+        function addStream() {
+            const urlInput = document.getElementById('streamUrl');
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('配信URLを入力してください');
+                return;
+            }
+            const streamId = generateStreamId();
+            const streamInfo = parseStreamUrl(url, streamId);
+            if (!streamInfo) {
+                alert('サポートされていないURLです。YouTube LiveまたはTwitchの配信URLを入力してください。');
+                return;
+            }
+            groups[currentGroupIndex].streams.push(streamInfo);
+            // 新しいストリームが追加された場合はキャッシュをリセット
+            isInitialized = false;
+            updateStreamsDisplay();
+            urlInput.value = '';
+        }
+
+        function parseStreamUrl(url, streamId) {
+            // YouTube Live URL parsing
+            let groupLength = 1;
+            if (groups && groups[currentGroupIndex] && Array.isArray(groups[currentGroupIndex].streams)) {
+                groupLength = groups[currentGroupIndex].streams.length + 1;
+            }
+            if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
+                let videoId = '';
+                if (url.includes('youtube.com/watch')) {
+                    const urlParams = new URLSearchParams(url.split('?')[1]);
+                    videoId = urlParams.get('v');
+                } else if (url.includes('youtu.be/')) {
+                    videoId = url.split('youtu.be/')[1].split('?')[0];
+                }
+                if (videoId) {
+                    return {
+                        id: streamId,
+                        type: 'youtube',
+                        videoId: videoId,
+                        embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`,
+                        originalUrl: url,
+                        title: `YouTube配信 ${groupLength}`
+                    };
+                }
+            }
+            // Twitch URL parsing
+            if (url.includes('twitch.tv/')) {
+                const channelName = url.split('twitch.tv/')[1].split('/')[0];
+                if (channelName) {
+                    const parent = 'oh4696.github.io';
+                    return {
+                        id: streamId,
+                        type: 'twitch',
+                        channelName: channelName,
+                        embedUrl: `https://player.twitch.tv/?channel=${channelName}&parent=${parent}&muted=true&autoplay=true&controls=true`,
+                        originalUrl: url,
+                        title: `Twitch配信 ${channelName}`
+                    };
+                }
+            }
+            return null;
+        }
+
+        function generateStreamId() {
+            return 'stream_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function removeStream(streamId) {
+            groups[currentGroupIndex].streams = groups[currentGroupIndex].streams.filter(stream => stream.id !== streamId);
+            // キャッシュからも削除
+            if (streamCache.has(streamId)) {
+                const element = streamCache.get(streamId);
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+                streamCache.delete(streamId);
+            }
+            // ストリームが削除された場合はキャッシュをリセット
+            isInitialized = false;
+            updateStreamsDisplay();
+        }
+
+        function editTitle(streamId) {
+            const stream = groups[currentGroupIndex].streams.find(s => s.id === streamId);
+            if (!stream) return;
+
+            const titleElement = document.querySelector(`[data-stream-id="${streamId}"] .stream-title`);
+            const currentTitle = titleElement.textContent;
+            
+            // 入力フィールドを作成
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'stream-title-input';
+            input.value = currentTitle;
+            
+            // 既存のタイトルを入力フィールドに置き換え
+            titleElement.innerHTML = '';
+            titleElement.appendChild(input);
+            titleElement.classList.add('editing');
+            
+            // フォーカスを設定
+            input.focus();
+            input.select();
+            
+            // イベントリスナーを追加
+            function saveTitle() {
+                const newTitle = input.value.trim();
+                if (newTitle) {
+                    stream.title = newTitle;
+                    titleElement.textContent = newTitle;
+                    titleElement.classList.remove('editing');
+                    // タイトル変更をローカルストレージに即時保存
+                    saveStreams();
+                } else {
+                    // 空欄の場合は元のタイトルに戻す
+                    titleElement.textContent = stream.title;
+                    titleElement.classList.remove('editing');
+                }
+            }
+            
+            input.addEventListener('blur', saveTitle);
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveTitle();
+                }
+            });
+        }
+
+        function setLayout(columns) {
+            currentLayout = columns;
+            const grid = document.getElementById('streamsGrid');
+            grid.className = `streams-grid grid-${columns}`;
+            
+            // Update layout buttons
+            document.querySelectorAll('.layout-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function clearAll() {
+            // 全グループ・全データを初期化
+            groups = [{ name: 'チーム1', streams: [] }];
+            currentGroupIndex = 0;
+            // キャッシュをクリア
+            streamCache.clear();
+            isInitialized = false;
+            // ローカルストレージも削除
+            localStorage.removeItem('multistream_simple_streams');
+            updateStreamsDisplay();
+            renderGroupTabs();
+        }
+
+        function updateStreamsDisplay() {
+            const grid = document.getElementById('streamsGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            // currentGroupIndexの範囲チェック
+            if (currentGroupIndex < 0 || currentGroupIndex >= groups.length) {
+                currentGroupIndex = 0;
+            }
+            const group = groups[currentGroupIndex];
+            const streams = group && Array.isArray(group.streams) ? group.streams : [];
+
+            // 初回読み込み時またはキャッシュが存在しない場合のみ完全に再構築
+            if (!isInitialized) {
+                // すべてのstream-itemを一旦削除
+                Array.from(grid.children).forEach(child => {
+                    if (child.classList && child.classList.contains('stream-item')) {
+                        grid.removeChild(child);
+                    }
+                });
+
+                if (streams.length === 0) {
+                    grid.innerHTML = '';
+                    if (emptyState) grid.appendChild(emptyState);
+                    isInitialized = true;
+                    return;
+                }
+
+                // 空状態を消す
+                if (emptyState && emptyState.parentNode === grid) {
+                    grid.removeChild(emptyState);
+                }
+
+                // streams配列の順序で並び替え・追加
+                streams.forEach((stream, index) => {
+                    if (!stream || !stream.id) return;
+                    // 必ず新規作成
+                    const item = createStreamElement(stream, index);
+                    item.setAttribute('data-index', index);
+                    item.style.display = '';
+                    grid.appendChild(item);
+                    // キャッシュに保存
+                    streamCache.set(stream.id, item);
+                    // ここでiframeの遅延読み込みを必ず実行
+                    loadStreamIframe(item);
+                });
+                
+                isInitialized = true;
+            } else {
+                // タブ移動時は表示/非表示の切り替えのみ
+                const currentGroupId = `group_${currentGroupIndex}`;
+                
+                // すべてのキャッシュされた要素を非表示にする
+                streamCache.forEach((element, streamId) => {
+                    element.style.display = 'none';
+                });
+                
+                if (streams.length === 0) {
+                    // 空状態を表示
+                    if (emptyState && emptyState.parentNode !== grid) {
+                        grid.appendChild(emptyState);
+                    }
+                    return;
+                }
+                
+                // 空状態を非表示
+                if (emptyState && emptyState.parentNode === grid) {
+                    grid.removeChild(emptyState);
+                }
+                
+                // 現在のグループのストリームのみ表示
+                streams.forEach((stream, index) => {
+                    if (!stream || !stream.id) return;
+                    
+                    let element = streamCache.get(stream.id);
+                    if (!element) {
+                        // キャッシュにない場合は新規作成
+                        element = createStreamElement(stream, index);
+                        element.setAttribute('data-index', index);
+                        grid.appendChild(element);
+                        streamCache.set(stream.id, element);
+                    } else {
+                        // キャッシュにある場合は表示のみ
+                        element.style.display = '';
+                        element.setAttribute('data-index', index);
+                    }
+                    
+                    // 表示されている要素のiframeを遅延読み込み
+                    loadStreamIframe(element);
+                });
+            }
+        }
+
+        function createStreamElement(stream, index) {
+            const streamDiv = document.createElement('div');
+            streamDiv.className = 'stream-item';
+            streamDiv.setAttribute('data-stream-id', stream.id);
+            streamDiv.setAttribute('data-index', index);
+            streamDiv.innerHTML = `
+                <div class="stream-header">
+                    <span class="drag-handle">⋮⋮</span>
+                    <div class="stream-title" style="cursor:${isEditMode ? 'pointer' : 'default'};" ${isEditMode ? `onclick=\"editTitle('${stream.id}')\"` : ''}>${stream.title}</div>
+                    <div class="stream-actions">
+                        ${isEditMode ? `<button onclick=\"removeStream('${stream.id}')\">削除</button>` : ''}
+                    </div>
+                </div>
+                <div class="stream-frame-container">
+                    <div class="stream-loading">読み込み中...</div>
+                    <iframe 
+                        class="stream-frame" 
+                        data-src="${stream.embedUrl}" 
+                        frameborder="0" 
+                        allowfullscreen
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        style="display: none;">
+                    </iframe>
+                </div>
+            `;
+            setupDragAndDrop(streamDiv, index);
+            return streamDiv;
+        }
+
+        function openTwitchPage(url) {
+            window.open(url, '_blank');
+        }
+
+        function setupDragAndDrop(element, index) {
+            element.addEventListener('dragstart', function(e) {
+                draggedElement = element;
+                // stream-idからindexを取得
+                const streamId = element.getAttribute('data-stream-id');
+                draggedIndex = groups[currentGroupIndex].streams.findIndex(s => s.id === streamId);
+                element.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', element.outerHTML);
+            });
+
+            element.addEventListener('dragend', function(e) {
+                element.classList.remove('dragging');
+                draggedElement = null;
+                draggedIndex = -1;
+            });
+
+            element.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (draggedElement && draggedElement !== element) {
+                    element.classList.add('drag-over');
+                }
+            });
+
+            element.addEventListener('dragleave', function(e) {
+                element.classList.remove('drag-over');
+            });
+
+            element.addEventListener('drop', function(e) {
+                e.preventDefault();
+                element.classList.remove('drag-over');
+
+                if (draggedElement && draggedElement !== element) {
+                    // 最新のindexを取得
+                    const streamId = element.getAttribute('data-stream-id');
+                    const dropIndex = groups[currentGroupIndex].streams.findIndex(s => s.id === streamId);
+                    if (draggedIndex === -1 || dropIndex === -1) return;
+                    // 配列の順序を変更（同じグループ内のみ）
+                    const [movedStream] = groups[currentGroupIndex].streams.splice(draggedIndex, 1);
+                    groups[currentGroupIndex].streams.splice(dropIndex, 0, movedStream);
+                    // 表示を更新（キャッシュをリセット）
+                    isInitialized = false;
+                    updateStreamsDisplay();
+                }
+            });
+
+            // ドラッグ可能にする
+            element.draggable = true;
+        }
+
+        // Enter key support for adding streams
+        document.getElementById('streamUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addStream();
+            }
+        });
+
+        // Load saved streams from localStorage
+        window.addEventListener('load', function() {
+            const savedStreams = localStorage.getItem('multistream_simple_streams');
+            if (savedStreams) {
+                try {
+                    groups = JSON.parse(savedStreams);
+                    // キャッシュを初期化
+                    streamCache.clear();
+                    isInitialized = false;
+                    updateStreamsDisplay();
+                } catch (e) {
+                    console.error('Failed to load saved streams:', e);
+                }
+            }
+        });
+
+        // Save streams to localStorage when updated
+        function saveStreams() {
+            localStorage.setItem('multistream_simple_streams', JSON.stringify(groups));
+        }
+
+        // Override updateStreamsDisplay to save to localStorage
+        const originalUpdateStreamsDisplay = updateStreamsDisplay;
+        updateStreamsDisplay = function() {
+            originalUpdateStreamsDisplay();
+            saveStreams();
+        };
+
+        // ログイン処理
+        const loginModal = document.getElementById('loginModal');
+        const loginForm = document.getElementById('loginForm');
+        const loginName = document.getElementById('loginName');
+        const loginPass = document.getElementById('loginPass');
+        const loginError = document.getElementById('loginError');
+        // 固定の認証情報
+        const VALID_NAME = 'onewatch';
+        const VALID_PASS = '2240';
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (loginName.value === VALID_NAME && loginPass.value === VALID_PASS) {
+                loginModal.style.display = 'none';
+                document.body.style.overflow = '';
+            } else {
+                loginError.style.display = 'block';
+            }
+        });
+        // ページロード時にフォーカス
+        window.addEventListener('DOMContentLoaded', function() {
+            renderGroupTabs();
+            loginName.focus();
+            document.body.style.overflow = 'hidden';
+        });
+
+        // フルスクリーン状態を監視してボタン表示を切り替える
+        function updateFullScreenBtn() {
+            const btn = document.getElementById('fullscreenBtn');
+            if (!btn) return;
+            if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                btn.textContent = '元に戻す';
+            } else {
+                btn.textContent = 'フルスクリーン';
+            }
+        }
+
+        function toggleFullScreen() {
+            if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                // フルスクリーン解除
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            } else {
+                // フルスクリーンにする
+                const docElm = document.documentElement;
+                if (docElm.requestFullscreen) {
+                    docElm.requestFullscreen();
+                } else if (docElm.webkitRequestFullscreen) {
+                    docElm.webkitRequestFullscreen();
+                } else if (docElm.msRequestFullscreen) {
+                    docElm.msRequestFullscreen();
+                }
+            }
+        }
+
+        // フルスクリーン状態の変化を監視
+        document.addEventListener('fullscreenchange', updateFullScreenBtn);
+        document.addEventListener('webkitfullscreenchange', updateFullScreenBtn);
+        document.addEventListener('msfullscreenchange', updateFullScreenBtn);
+
+        // 初期化時にもボタン表示を正しく
+        window.addEventListener('DOMContentLoaded', updateFullScreenBtn);
+
+        function loadStreamIframe(element) {
+            const iframe = element.querySelector('.stream-frame');
+            const loading = element.querySelector('.stream-loading');
+            
+            if (!iframe || !loading) return;
+            
+            // 既に読み込まれている場合はスキップ
+            if (iframe.src) return;
+            
+            // 遅延読み込み（少し待ってから読み込み）
+            setTimeout(() => {
+                const dataSrc = iframe.getAttribute('data-src');
+                if (dataSrc) {
+                    iframe.src = dataSrc;
+                    iframe.style.display = 'block';
+                    loading.style.display = 'none';
+                }
+            }, 100);
+        }
+    </script>
+</body>
+</html> 
